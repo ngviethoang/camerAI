@@ -14,10 +14,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Webcam from 'react-webcam';
-import CaptureButton from '../capture-result';
+import CaptureResult from '../capture-result';
 import { Settings } from '../settings';
 import './index.css';
-import CaptureResult from '../capture-result';
 
 export default function CameraContainer() {
   const {
@@ -33,11 +32,15 @@ export default function CameraContainer() {
   const webcamRef = useRef<Webcam>(null);
 
   const [videoConstraints, setVideoConstraints] =
-    useState<MediaTrackConstraints>({
-      width: window.innerWidth,
-      height: window.innerHeight,
-      facingMode: 'environment',
-    });
+    useState<MediaTrackConstraints>(
+      typeof window !== 'undefined'
+        ? {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            facingMode: 'environment',
+          }
+        : {}
+    );
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceIndex, setDeviceIndex] = useState(0);
   const [mirrored, setMirrored] = useState(false);
