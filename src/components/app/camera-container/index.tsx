@@ -202,7 +202,7 @@ export default function CameraContainer() {
           disablePictureInPicture={true}
           mirrored={mirrored}
           videoConstraints={videoConstraints}
-          className="w-full h-full"
+          className="min-w-full min-h-full fixed top-0 left-0"
         />
       )}
       <div className="w-screen h-screen flex flex-col justify-between z-10">
