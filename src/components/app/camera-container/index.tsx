@@ -31,16 +31,9 @@ export default function CameraContainer() {
 
   const webcamRef = useRef<Webcam>(null);
 
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [videoConstraints, setVideoConstraints] =
-    useState<MediaTrackConstraints>(
-      typeof window !== 'undefined'
-        ? {
-            width: window.innerWidth,
-            height: window.innerHeight,
-            facingMode: 'environment',
-          }
-        : {}
-    );
+    useState<MediaTrackConstraints>();
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceIndex, setDeviceIndex] = useState(0);
   const [mirrored, setMirrored] = useState(false);
@@ -54,11 +47,27 @@ export default function CameraContainer() {
     [setDevices]
   );
 
+  const handleResize = useCallback(() => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    setVideoConstraints((prev) => ({
+      ...prev,
+      width,
+      height,
+    }));
+  }, [setVideoConstraints]);
+
   useEffect(() => {
     return () => {
       setIsCapturedWindowOpen(false);
     };
   }, []);
+
+  useEffect(() => {
+    if (isCameraOpen) {
+      handleResize();
+    }
+  }, [isCameraOpen, handleResize]);
 
   useEffect(() => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
@@ -69,14 +78,17 @@ export default function CameraContainer() {
   }, [handleDevices]);
 
   useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setVideoConstraints({ ...videoConstraints, width, height });
-    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [videoConstraints]);
+  }, [handleResize]);
+
+  const handleSwitchCamera = useCallback(() => {
+    setDeviceIndex((deviceIndex + 1) % devices.length);
+    setVideoConstraints({
+      ...videoConstraints,
+      deviceId: devices[deviceIndex].deviceId,
+    });
+  }, [deviceIndex, devices, setVideoConstraints, videoConstraints]);
 
   const selectFile = useCallback(() => {
     const input = document.createElement('input');
@@ -105,7 +117,7 @@ export default function CameraContainer() {
       };
     };
     input.click();
-  }, [setWebcamImageSrc, setIsCapturedWindowOpen]);
+  }, [setWebcamImageSrc, setIsCapturedWindowOpen, cameraMode, setWebcamVideo]);
 
   const handleDataAvailable = useCallback(
     ({ data }: any) => {
@@ -173,16 +185,25 @@ export default function CameraContainer() {
   ]);
 
   return (
-    <div className="w-full h-full grid overlap-grid">
-      <Webcam
-        ref={webcamRef}
-        screenshotFormat="image/jpeg"
-        audio={true}
-        muted={true}
-        disablePictureInPicture={true}
-        mirrored={mirrored}
-        videoConstraints={videoConstraints}
-      />
+    <div className="w-full h-full grid overlap-grid bg-black">
+      {!isCameraOpen ? (
+        <div
+          className="w-screen h-screen z-50 flex justify-center items-center text-white cursor-pointer"
+          onClick={() => setIsCameraOpen(true)}
+        >
+          Click here to turn on camera.
+        </div>
+      ) : (
+        <Webcam
+          ref={webcamRef}
+          screenshotFormat="image/jpeg"
+          audio={true}
+          muted={true}
+          disablePictureInPicture={true}
+          mirrored={mirrored}
+          videoConstraints={videoConstraints}
+        />
+      )}
       <div className="w-screen h-screen flex flex-col justify-between z-10">
         <div className="flex justify-end py-3 text-white">
           <Button
@@ -196,13 +217,7 @@ export default function CameraContainer() {
             <Button
               variant={'ghost'}
               size={'icon'}
-              onClick={() => {
-                setDeviceIndex((deviceIndex + 1) % devices.length);
-                setVideoConstraints({
-                  ...videoConstraints,
-                  deviceId: devices[deviceIndex].deviceId,
-                });
-              }}
+              onClick={handleSwitchCamera}
             >
               <SwitchCameraIcon />
             </Button>
