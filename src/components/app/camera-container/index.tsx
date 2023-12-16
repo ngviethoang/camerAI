@@ -43,8 +43,19 @@ export default function CameraContainer() {
   const [capturing, setCapturing] = useState(false);
 
   const handleDevices = useCallback(
-    (mediaDevices: MediaDeviceInfo[]) =>
-      setDevices(mediaDevices.filter(({ kind }) => kind === 'videoinput')),
+    (mediaDevices: MediaDeviceInfo[]) => {
+      const videoDevices = mediaDevices.filter(
+        ({ kind }) => kind === 'videoinput'
+      );
+      setDevices(videoDevices);
+      // auto set device index to back camera
+      const backCameraIndex = videoDevices.findIndex(({ label }) =>
+        label?.includes('back')
+      );
+      if (backCameraIndex !== -1) {
+        setDeviceIndex(backCameraIndex);
+      }
+    },
     [setDevices]
   );
 
