@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { APP_MODES } from '@/const';
 import useAppStore from '@/store';
+import { useWindowSize } from '@uidotdev/usehooks';
 import {
   AppWindowIcon,
   FileVideoIcon,
@@ -28,10 +29,10 @@ export default function CameraContainer() {
     setWebcamVideo,
     setIsCapturedWindowOpen,
   } = useAppStore();
+  const { width, height } = useWindowSize();
 
   const webcamRef = useRef<Webcam>(null);
 
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [videoConstraints, setVideoConstraints] =
     useState<MediaTrackConstraints>();
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -47,16 +48,6 @@ export default function CameraContainer() {
     [setDevices]
   );
 
-  const handleResize = useCallback(() => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    setVideoConstraints((prev) => ({
-      ...prev,
-      width,
-      height,
-    }));
-  }, [setVideoConstraints]);
-
   useEffect(() => {
     return () => {
       setIsCapturedWindowOpen(false);
@@ -64,31 +55,32 @@ export default function CameraContainer() {
   }, []);
 
   useEffect(() => {
-    if (isCameraOpen) {
-      handleResize();
-    }
-  }, [isCameraOpen, handleResize]);
-
-  useEffect(() => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-      console.log('enumerateDevices() not supported.');
+      alert('Camera not found. Error: enumerateDevices() not supported.');
       return;
     }
     navigator.mediaDevices.enumerateDevices().then(handleDevices);
   }, [handleDevices]);
 
-  useEffect(() => {
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [handleResize]);
-
   const handleSwitchCamera = useCallback(() => {
+    if (!devices.length) return;
     setDeviceIndex((deviceIndex + 1) % devices.length);
-    setVideoConstraints({
-      ...videoConstraints,
-      deviceId: devices[deviceIndex].deviceId,
-    });
-  }, [deviceIndex, devices, setVideoConstraints, videoConstraints]);
+  }, [deviceIndex, devices]);
+
+  useEffect(() => {
+    if (!devices.length) return;
+    const { deviceId, label } = devices[deviceIndex];
+    if (label && label.includes('front')) {
+      setMirrored(true);
+    } else {
+      setMirrored(false);
+    }
+
+    setVideoConstraints((prev) => ({
+      ...prev,
+      deviceId: { exact: deviceId },
+    }));
+  }, [devices, deviceIndex]);
 
   const selectFile = useCallback(() => {
     const input = document.createElement('input');
@@ -121,6 +113,7 @@ export default function CameraContainer() {
 
   const handleDataAvailable = useCallback(
     ({ data }: any) => {
+      console.log('handleDataAvailable', data);
       if (data.size > 0) {
         const newVideo = {
           url: URL.createObjectURL(
@@ -186,31 +179,32 @@ export default function CameraContainer() {
 
   return (
     <div className="w-full h-full grid overlap-grid bg-black">
-      {!isCameraOpen ? (
-        <div
-          className="w-screen h-screen z-50 flex justify-center items-center text-white cursor-pointer"
-          onClick={() => setIsCameraOpen(true)}
-        >
-          Click here to turn on camera.
-        </div>
-      ) : (
-        <Webcam
-          ref={webcamRef}
-          screenshotFormat="image/jpeg"
-          audio={true}
-          muted={true}
-          disablePictureInPicture={true}
-          mirrored={mirrored}
-          videoConstraints={videoConstraints}
-          className="min-w-full min-h-full fixed top-0 left-0"
-        />
-      )}
+      <Webcam
+        ref={webcamRef}
+        screenshotFormat="image/jpeg"
+        audio={true}
+        muted={true}
+        width={width as any}
+        height={height as any}
+        disablePictureInPicture={true}
+        mirrored={mirrored}
+        videoConstraints={{
+          ...videoConstraints,
+          aspectRatio:
+            height && width
+              ? height <= width
+                ? width / height
+                : height / width
+              : undefined,
+        }}
+      />
       <div className="w-screen h-screen flex flex-col justify-between z-10">
         <div className="flex justify-end py-3 text-white">
           <Button
             variant={'ghost'}
             size={'icon'}
             onClick={() => setMirrored(!mirrored)}
+            className={`${mirrored ? 'text-yellow-400' : ''}`}
           >
             <FlipHorizontalIcon />
           </Button>
